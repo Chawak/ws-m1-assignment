@@ -44,17 +44,14 @@ def get_job_result(body : Body, api_key: str = Security(get_api_key)) :
     
     message = {"url": body.url, "job_id":hash(body.url)}
 
-    try: 
-        mq_connection = BlockingConnection(ConnectionParameters(host=RABBITMQ_HOST,port = RABBITMQ_PORT))
-        mq_channel = mq_connection.channel()
+    mq_connection = BlockingConnection(ConnectionParameters(host=RABBITMQ_HOST,port = RABBITMQ_PORT))
+    mq_channel = mq_connection.channel()
 
-        mq_channel.queue_declare(queue=IMAGE_QUEUE_NAME,durable=True)
-        mq_channel.basic_publish(exchange="",routing_key=IMAGE_QUEUE_NAME,
-                                 body=json.dumps(message),
-                                 properties=BasicProperties(delivery_mode=spec.PERSISTENT_DELIVERY_MODE))
-        
-        return JSONResponse(status_code=status.HTTP_200_OK,content={
-            "message":"Job Submitted"})
-    except :
-        return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,content={
-            "message":"Internal Servel Error"})
+    mq_channel.queue_declare(queue=IMAGE_QUEUE_NAME,durable=True)
+    mq_channel.basic_publish(exchange="",routing_key=IMAGE_QUEUE_NAME,
+                                body=json.dumps(message),
+                                properties=BasicProperties(delivery_mode=spec.PERSISTENT_DELIVERY_MODE))
+    mq_connection.close()
+
+    return JSONResponse(status_code=status.HTTP_200_OK,content={
+        "message":"Job Submitted"})
