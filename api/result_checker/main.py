@@ -9,7 +9,7 @@ from pydantic import BaseModel
 import pymongo
 
 load_dotenv()
-API_KEYS = eval(os.getenv("API_KEYS"))  # pylint: disable=eval-used
+API_KEYS = os.getenv("API_KEYS").split("<key_sep>")  # pylint: disable=eval-used
 
 api_key_header = APIKeyHeader(name="x-api-key", auto_error=False)
 
@@ -25,8 +25,8 @@ def get_api_key(
     )
 
 
-MONGO_DB_NAME = os.getenv("DB_NAME")
-MONGO_COL_NAME = os.getenv("COL_NAME")
+MONGO_DB_NAME = os.getenv("MONGO_DB_NAME")
+MONGO_COL_NAME = os.getenv("MONGO_COL_NAME")
 
 mongo_db = pymongo.MongoClient(os.getenv("MONGO_HOST"))
 
@@ -41,7 +41,7 @@ def mongo_query(
     return [obj for obj in result]
 
 
-def b64decode(b64img: str):
+def decode(b64img: str):
     return base64.b64decode(b64img)
 
 
@@ -68,14 +68,12 @@ def get_job_result(body: Body, api_key: str = Security(get_api_key)):
         )
     ]
     if len(result) == 0:
-        return JSONResponse(
+        raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            content={
-                "message": "No such result with job_id (The job may being processed or no job with this id was submitted)"
-            },
+            detail="No such result with job_id (The job may being processed or no job with this id was submitted)",
         )
 
-    image_bytes = b64decode(result["image"])
+    image_bytes = decode(result[0]["image"])
     response = Response(status_code=status.HTTP_200_OK, content=image_bytes)
     response.headers["Content-Type"] = "image/png"
     response.headers["Content-Disposition"] = "attachment; filename=image.png"
