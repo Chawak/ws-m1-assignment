@@ -50,7 +50,7 @@ def check_if_valid_url(url: str) -> bool:
 
 
 def generate_job_id(url) -> int:
-    return hash(url + str(bcrypt.gensalt()))
+    return hash(url + str(bcrypt.gensalt())) % (10**9)
 
 
 def rabbitmq_publish(

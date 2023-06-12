@@ -103,6 +103,7 @@ class ResultCheckerTestcase(unittest.TestCase):
         for testcase in JOB_ID_TESTCASES:
             result = generate_job_id(testcase["url"])
             self.assertEqual(type(result), int)
+            self.assertGreaterEqual(result, 0)
 
     def test_healthcheck_endpoint(self):
         res = requests.get(f"http://{APP_HOST}:{APP_PORT}/healthcheck", timeout=TIMEOUT)
