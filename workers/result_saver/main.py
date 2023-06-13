@@ -11,15 +11,17 @@ args = parser.parse_args()
 
 load_dotenv()
 MONGO_HOST = os.getenv("MONGO_HOST")
-MONGO_DB_NAME = os.getenv("MONGO_DB_NAME")
-MONGO_COL_NAME = os.getenv("MONGO_COL_NAME")
 RABBITMQ_HOST = os.getenv("RABBITMQ_HOST")
 RABBITMQ_PORT = os.getenv("RABBITMQ_PORT")
 
 if args.test:
     RABBITMQ_RESULT_QUEUE = os.getenv("RABBITMQ_TEST_RESULT_QUEUE")
+    MONGO_DB_NAME = os.getenv("MONGO_TEST_DB_NAME")
+    MONGO_COL_NAME = os.getenv("MONGO_TEST_COL_NAME")
 else:
     RABBITMQ_RESULT_QUEUE = os.getenv("RABBITMQ_RESULT_QUEUE")
+    MONGO_DB_NAME = os.getenv("MONGO_DB_NAME")
+    MONGO_COL_NAME = os.getenv("MONGO_COL_NAME")
 
 mongo_db = pymongo.MongoClient(MONGO_HOST)
 
@@ -29,9 +31,12 @@ def mongo_insert(
     col_name: str = MONGO_COL_NAME,
     obj: dict = {},
 ) -> bool:
-    result = mongo_db[db_name][col_name].insert_one(obj)
+    try:
+        result = mongo_db[db_name][col_name].insert_one(obj)
 
-    return result.acknowledged
+        return result.acknowledged
+    except pymongo.errors.DuplicateKeyError:
+        return False
 
 
 def main():
@@ -46,6 +51,8 @@ def main():
         write_ack = mongo_insert(
             db_name=MONGO_DB_NAME, col_name=MONGO_COL_NAME, obj=json.loads(body)
         )
+        print("Received Body")
+        print("Ack", write_ack)
         if write_ack:
             ch.basic_ack(delivery_tag=method.delivery_tag)
 
@@ -58,4 +65,5 @@ def main():
 if __name__ == "__main__":
     print("Running a saver worker...")
     print("Message receive from queue:", RABBITMQ_RESULT_QUEUE)
+    print("Mongo db and col name", MONGO_DB_NAME, MONGO_COL_NAME)
     main()
