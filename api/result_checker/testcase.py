@@ -1,21 +1,33 @@
 import base64
 import os
 from dotenv import load_dotenv
+import requests
 
 load_dotenv()
 MONGO_TEST_DB_NAME = os.getenv("MONGO_TEST_DB_NAME")
 MONGO_TEST_COL_NAME = os.getenv("MONGO_TEST_COL_NAME")
 
 DUMMY_DATAS = [
-    {"job_id": 0, "image": "test_img/tmp_img1.jpeg", "result_type": "cached"},
-    {"job_id": 1, "image": "test_img/tmp_img2.jpeg", "result_type": "cached"},
-    {"job_id": 2, "image": "test_img/tmp_img3.jpeg", "result_type": "convert"},
+    {
+        "job_id": 0,
+        "image": "https://onlinejpgtools.com/images/examples-onlinejpgtools/random-grid.jpg",
+        "result_type": "cached",
+    },
+    {
+        "job_id": 1,
+        "image": "https://onlineimagetools.com/images/examples-onlineimagetools/color-grid.png",
+        "result_type": "cached",
+    },
+    {
+        "job_id": 2,
+        "image": "https://onlineimagetools.com/images/examples-onlineimagetools/orange-shades.png",
+        "result_type": "convert",
+    },
 ]
 
 for i, data in enumerate(DUMMY_DATAS):
-    with open(DUMMY_DATAS[i]["image"], "rb") as image:
-        byte_content = image.read()
-    DUMMY_DATAS[i]["image"] = base64.b64encode(byte_content)
+    img = requests.get(data["image"], timeout=100)
+    DUMMY_DATAS[i]["image"] = base64.b64encode(img.content)
 
 
 NOT_EXIST = "NotExistName"
@@ -24,9 +36,15 @@ QUERY = "QUERY"
 DELETE = "DELETE"
 
 DECODE_TESTCASES = [
-    {"filename": "test_img/tmp_img1.jpeg"},
-    {"filename": "test_img/tmp_img2.jpeg"},
-    {"filename": "test_img/tmp_img3.jpeg"},
+    {
+        "url": "https://onlinejpgtools.com/images/examples-onlinejpgtools/random-grid.jpg"
+    },
+    {
+        "url": "https://onlineimagetools.com/images/examples-onlineimagetools/color-grid.png"
+    },
+    {
+        "url": "https://onlineimagetools.com/images/examples-onlineimagetools/orange-shades.png"
+    },
 ]
 
 MONGO_TESTCASES = [

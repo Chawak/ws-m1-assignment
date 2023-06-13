@@ -70,7 +70,8 @@ def get_job_result(body: Body, api_key: str = Security(get_api_key)):
     if len(result) == 0:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="No such result with job_id (The job may being processed or no job with this id was submitted)",
+            detail="""No such result with job_id 
+                (The job may being processed or no job with this id was submitted)""",
         )
 
     image_bytes = decode(result[0]["image"])

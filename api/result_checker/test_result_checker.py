@@ -74,11 +74,10 @@ class ResultCheckerTestcase(unittest.TestCase):
 
     def test_decoding(self):
         for testcase in DECODE_TESTCASES:
-            with open(testcase["filename"], "rb") as image:
-                original_content = image.read()
-            encoded_content = base64.b64encode(original_content)
+            res = requests.get(testcase["url"], timeout=TIMEOUT)
+            encoded_content = base64.b64encode(res.content)
             decoded_content = decode(encoded_content)
-            self.assertEqual(decoded_content, original_content)
+            self.assertEqual(decoded_content, res.content)
 
     def test_healthcheck_endpoint(self):
         res = requests.get(f"http://{APP_HOST}:{APP_PORT}/healthcheck", timeout=TIMEOUT)
