@@ -26,25 +26,6 @@ JSON_MESSAGE2 = json.dumps(
 )
 
 
-def start_consumer(channel, queue_name=IMAGE_QUEUE_NAME) -> List[str]:
-    msg_list = []
-
-    def callback(ch, method, properties, body):
-        nonlocal msg_list
-        msg_list.append(body)
-        ch.basic_ack(delivery_tag=method.delivery_tag)
-        ch.stop_consuming()
-
-    channel.basic_consume(
-        queue=IMAGE_QUEUE_NAME,
-        on_message_callback=callback,
-    )
-    channel.basic_qos(prefetch_count=1)
-    channel.start_consuming()
-
-    return msg_list
-
-
 JOB_ID_TESTCASES = [
     {"url": "test_img/tmp_img1.jpeg"},
     {"url": "test_img/tmp_img2.jpeg"},
@@ -148,3 +129,22 @@ CONVERT_ENDPOINT_TESTCASES = [
         "expected_ok": False,
     },
 ]
+
+
+def start_consumer(channel, queue_name=IMAGE_QUEUE_NAME) -> List[str]:
+    msg_list = []
+
+    def callback(ch, method, properties, body):
+        nonlocal msg_list
+        msg_list.append(body)
+        ch.basic_ack(delivery_tag=method.delivery_tag)
+        ch.stop_consuming()
+
+    channel.basic_consume(
+        queue=IMAGE_QUEUE_NAME,
+        on_message_callback=callback,
+    )
+    channel.basic_qos(prefetch_count=1)
+    channel.start_consuming()
+
+    return msg_list
