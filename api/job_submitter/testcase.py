@@ -8,6 +8,7 @@ load_dotenv()
 RABBITMQ_HOST = os.getenv("RABBITMQ_HOST")
 RABBITMQ_PORT = int(os.getenv("RABBITMQ_PORT"))
 IMAGE_QUEUE_NAME = os.getenv("RABBITMQ_TEST_IMAGE_QUEUE")
+TEST_QUEUE_NAME = os.getenv("RABBITMQ_TEST_QUEUE")
 
 INVALIDMQ_HOST = "jj"
 INVALIDMQ_PORT = 18
@@ -131,7 +132,7 @@ CONVERT_ENDPOINT_TESTCASES = [
 ]
 
 
-def start_consumer(channel, queue_name=IMAGE_QUEUE_NAME) -> List[str]:
+def start_consumer(channel, queue_name=TEST_QUEUE_NAME) -> List[str]:
     msg_list = []
 
     def callback(ch, method, properties, body):
@@ -141,7 +142,7 @@ def start_consumer(channel, queue_name=IMAGE_QUEUE_NAME) -> List[str]:
         ch.stop_consuming()
 
     channel.basic_consume(
-        queue=IMAGE_QUEUE_NAME,
+        queue=queue_name,
         on_message_callback=callback,
     )
     channel.basic_qos(prefetch_count=1)

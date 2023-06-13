@@ -20,6 +20,7 @@ APP_PORT = os.getenv("APP_PORT")
 RABBITMQ_HOST = os.getenv("RABBITMQ_HOST")
 RABBITMQ_PORT = int(os.getenv("RABBITMQ_PORT"))
 IMAGE_QUEUE_NAME = os.getenv("RABBITMQ_TEST_IMAGE_QUEUE")
+TEST_QUEUE_NAME = os.getenv("RABBITMQ_TEST_QUEUE")
 
 
 TIMEOUT = 100
@@ -33,20 +34,20 @@ class ResultCheckerTestcase(unittest.TestCase):
         self.assertEqual(type(connection), BlockingConnection)
         channel = connection.channel()
         self.assertEqual(type(channel), BlockingChannel)
-        channel.queue_delete(queue=IMAGE_QUEUE_NAME)
+        channel.queue_delete(queue=TEST_QUEUE_NAME)
 
-        channel.queue_declare(queue=IMAGE_QUEUE_NAME, durable=True)
+        channel.queue_declare(queue=TEST_QUEUE_NAME, durable=True)
 
         for testcase in RABBITMQ_MESSAGES:
             channel.basic_publish(
                 exchange="",
-                routing_key=IMAGE_QUEUE_NAME,
+                routing_key=TEST_QUEUE_NAME,
                 body=testcase["message"],
                 properties=BasicProperties(delivery_mode=spec.PERSISTENT_DELIVERY_MODE),
             )
 
-        msg_list = start_consumer(channel=channel)
-        msg_list += start_consumer(channel=channel)
+        msg_list = start_consumer(channel=channel, queue_name=TEST_QUEUE_NAME)
+        msg_list += start_consumer(channel=channel, queue_name=TEST_QUEUE_NAME)
 
         channel.close()
 
@@ -69,7 +70,6 @@ class ResultCheckerTestcase(unittest.TestCase):
                 port=testcase["port"],
                 queue=testcase["queue"],
             )
-
             self.assertEqual(output, testcase["expected_output"])
 
         connection = BlockingConnection(
@@ -84,10 +84,10 @@ class ResultCheckerTestcase(unittest.TestCase):
             for item in RABBITMQ_PUBLISH_FUNC_TESTCASES
             if item["expected_output"]
         ]
-        msg_list = start_consumer(channel=channel)
+        msg_list = start_consumer(channel=channel, queue_name=IMAGE_QUEUE_NAME)
 
         for _ in range(len(expected_messages) - 1):
-            msg_list += start_consumer(channel=channel)
+            msg_list += start_consumer(channel=channel, queue_name=IMAGE_QUEUE_NAME)
         channel.close()
 
         self.assertEqual(len(msg_list), len(expected_messages))
