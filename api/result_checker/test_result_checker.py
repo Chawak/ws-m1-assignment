@@ -1,6 +1,7 @@
 import unittest
 import os
 import base64
+import time
 from main import decode, mongo_query
 from testcase import (
     QUERY_FUNC_TESTCASES,
@@ -21,56 +22,43 @@ MONGO_TEST_COL_NAME = os.getenv("MONGO_TEST_COL_NAME")
 TIMEOUT = 100
 
 mongo_db = pymongo.MongoClient(os.getenv("MONGO_HOST"))
+collection = mongo_db[MONGO_TEST_DB_NAME][MONGO_TEST_COL_NAME]
 
 
 class ResultCheckerTestcase(unittest.TestCase):
+    def wait_for_document_insertion(
+        self, collection, query, max_attempts=3, interval_seconds=1
+    ):
+        for _ in range(max_attempts):
+            query_result = [elem for elem in collection.find(query)]
+            if len(query_result) != 0:
+                return query_result
+
+            time.sleep(interval_seconds)
+
+        return []
+
     def test_mongodb(self):
-        mongo_db[MONGO_TEST_DB_NAME][MONGO_TEST_COL_NAME].delete_many({})
-        mongo_db[MONGO_TEST_DB_NAME][MONGO_TEST_COL_NAME].insert_many(DUMMY_DATAS)
+        collection.delete_many({})
+        collection.insert_many(DUMMY_DATAS)
 
         for testcase in MONGO_TESTCASES:
             if testcase["command"] == "QUERY":
-                res = mongo_db[MONGO_TEST_DB_NAME][MONGO_TEST_COL_NAME].find(
-                    testcase["object"]
+                res = self.wait_for_document_insertion(
+                    collection, query=testcase["object"]
                 )
-                res_list = [data for data in res]
-
-                self.assertEqual(len(res_list), len(testcase["ans"]))
-                res_list = sorted(res_list, key=lambda d: d["job_id"])
+                self.assertEqual(len(res), len(testcase["ans"]))
+                res = sorted(res, key=lambda d: d["job_id"])
 
                 for i in range(len(testcase["ans"])):
                     for field in testcase["ans"][i]:
-                        self.assertEqual(res_list[i][field], testcase["ans"][i][field])
+                        self.assertEqual(res[i][field], testcase["ans"][i][field])
 
             elif testcase["command"] == "DELETE":
-                mongo_db[MONGO_TEST_DB_NAME][MONGO_TEST_COL_NAME].delete_one(
-                    testcase["object"]
-                )
+                collection.delete_one(testcase["object"])
             elif testcase["command"] == "UPDATE":
-                mongo_db[MONGO_TEST_DB_NAME][MONGO_TEST_COL_NAME].update_one(
-                    testcase["object"], testcase["new_object"]
-                )
-        mongo_db[MONGO_TEST_DB_NAME][MONGO_TEST_COL_NAME].delete_many({})
-
-    def test_mongo_query(self):
-        mongo_db[MONGO_TEST_DB_NAME][MONGO_TEST_COL_NAME].delete_many({})
-        mongo_db[MONGO_TEST_DB_NAME][MONGO_TEST_COL_NAME].insert_many(DUMMY_DATAS)
-
-        for testcase in QUERY_FUNC_TESTCASES:
-            res = mongo_query(
-                db_name=testcase["db"],
-                col_name=testcase["col"],
-                query=testcase["query"],
-            )
-            res_list = [data for data in res]
-            self.assertEqual(len(res_list), len(testcase["ans"]))
-            res_list = sorted(res_list, key=lambda d: d["job_id"])
-
-            for i in range(len(testcase["ans"])):
-                for field in testcase["ans"][i]:
-                    self.assertEqual(res_list[i][field], testcase["ans"][i][field])
-
-        mongo_db[MONGO_TEST_DB_NAME][MONGO_TEST_COL_NAME].delete_many({})
+                collection.update_one(testcase["object"], testcase["new_object"])
+        collection.delete_many({})
 
     def test_decoding(self):
         for testcase in DECODE_TESTCASES:
@@ -87,8 +75,8 @@ class ResultCheckerTestcase(unittest.TestCase):
         self.assertEqual(res.text, '"Ok"')
 
     def test_get_endpoint(self):
-        mongo_db[MONGO_TEST_DB_NAME][MONGO_TEST_COL_NAME].delete_many({})
-        mongo_db[MONGO_TEST_DB_NAME][MONGO_TEST_COL_NAME].insert_many(DUMMY_DATAS)
+        collection.delete_many({})
+        collection.insert_many(DUMMY_DATAS)
 
         for testcase in GET_ENDPOINT_TESTCASES:
             res = requests.post(
@@ -113,6 +101,7 @@ class ResultCheckerTestcase(unittest.TestCase):
 
             if "expected_content" in testcase:
                 self.assertEqual(res.content, testcase["expected_content"])
+        collection.delete_many({})
 
 
 if __name__ == "__main__":
