@@ -1,6 +1,7 @@
 import unittest
 import os
 import json
+import time
 from main import mongo_insert
 from testcase import (
     MONGO_TESTCASES,
@@ -12,7 +13,6 @@ from testcase import (
 )
 from pika import BasicProperties, BlockingConnection, ConnectionParameters, spec
 from pika.adapters.blocking_connection import BlockingChannel
-import requests
 import pymongo
 from dotenv import load_dotenv
 
@@ -35,6 +35,18 @@ mongo_db = pymongo.MongoClient(MONGO_HOST)
 
 
 class ResultSaverTestcase(unittest.TestCase):
+    def wait_for_document_insertion(
+        self, collection, query, max_attempts=3, interval_seconds=1
+    ):
+        for _ in range(max_attempts):
+            query_result = [elem for elem in collection.find(query)]
+            if len(query_result) != 0:
+                return query_result
+
+            time.sleep(interval_seconds)
+
+        return []
+
     def test_rabbitmq(self):
         connection = BlockingConnection(
             ConnectionParameters(RABBITMQ_HOST, port=RABBITMQ_PORT)
@@ -42,7 +54,7 @@ class ResultSaverTestcase(unittest.TestCase):
         self.assertEqual(type(connection), BlockingConnection)
         channel = connection.channel()
         self.assertEqual(type(channel), BlockingChannel)
-        channel.queue_delete(queue=TEST_QUEUE_NAME)
+        channel.queue_purge(queue=RESULT_QUEUE_NAME)
 
         channel.queue_declare(queue=TEST_QUEUE_NAME, durable=True)
 
@@ -70,8 +82,9 @@ class ResultSaverTestcase(unittest.TestCase):
 
         for testcase in MONGO_TESTCASES:
             if testcase["command"] == "QUERY":
-                res = collection.find(testcase["object"])
-                res_list = [data for data in res]
+                res_list = self.wait_for_document_insertion(
+                    collection=collection, query=testcase["object"]
+                )
 
                 self.assertEqual(len(res_list), len(testcase["ans"]))
                 res_list = sorted(res_list, key=lambda d: d["job_id"])
@@ -107,8 +120,14 @@ class ResultSaverTestcase(unittest.TestCase):
 
             self.assertEqual(insert_ack, testcase["expected_ack"])
 
-            query_all_res = [elem for elem in collection.find({})]
-            query_one_res = [elem for elem in collection.find(testcase["object"])]
+            query_all_res = self.wait_for_document_insertion(
+                collection=collection, query={}
+            )
+
+            query_one_res = self.wait_for_document_insertion(
+                collection=collection, query=testcase["object"]
+            )
+
             self.assertEqual(len(query_all_res), testcase["len_cum_query"])
             self.assertEqual(len(query_one_res), len(testcase["ans"]))
 
@@ -121,42 +140,37 @@ class ResultSaverTestcase(unittest.TestCase):
             collection.drop_index(f"{INDEX_FIELD}_1")
 
     def test_message_receive_and_save(self):
-        pass
-        # collection = mongo_db[MONGO_TEST_DB_NAME][MONGO_TEST_COL_NAME]
-        # collection.delete_many({})
+        collection = mongo_db[MONGO_TEST_DB_NAME][MONGO_TEST_COL_NAME]
+        collection.delete_many({})
 
-        # connection = BlockingConnection(
-        #     ConnectionParameters(RABBITMQ_HOST, port=RABBITMQ_PORT)
-        # )
-        # self.assertEqual(type(connection), BlockingConnection)
-        # channel = connection.channel()
-        # self.assertEqual(type(channel), BlockingChannel)
-        # # channel.queue_delete(queue=RESULT_QUEUE_NAME)
-        # print("RESULT_QUEUE_NAME", RESULT_QUEUE_NAME)
-        # channel.queue_declare(queue=RESULT_QUEUE_NAME, durable=True)
+        connection = BlockingConnection(
+            ConnectionParameters(RABBITMQ_HOST, port=RABBITMQ_PORT)
+        )
+        self.assertEqual(type(connection), BlockingConnection)
+        channel = connection.channel()
+        self.assertEqual(type(channel), BlockingChannel)
+        channel.queue_purge(queue=RESULT_QUEUE_NAME)
+        channel.queue_declare(queue=RESULT_QUEUE_NAME, durable=True)
 
-        # for testcase in RECEIVE_AND_SAVE_MESSAGES:
-        #     channel.basic_publish(
-        #         exchange="",
-        #         routing_key=RESULT_QUEUE_NAME,
-        #         body=testcase["message"],
-        #         properties=BasicProperties(delivery_mode=spec.PERSISTENT_DELIVERY_MODE),
-        #     )
+        for testcase in RECEIVE_AND_SAVE_MESSAGES:
+            channel.basic_publish(
+                exchange="",
+                routing_key=RESULT_QUEUE_NAME,
+                body=testcase["message"],
+                properties=BasicProperties(delivery_mode=spec.PERSISTENT_DELIVERY_MODE),
+            )
 
-        # for testcase in RECEIVE_AND_SAVE_MESSAGES:
-        #     result = [
-        #         elem
-        #         for elem in mongo_db[MONGO_TEST_DB_NAME][MONGO_TEST_COL_NAME].find(
-        #             json.loads(testcase["message"])
-        #         )
-        #     ]
+        for testcase in RECEIVE_AND_SAVE_MESSAGES:
+            result = self.wait_for_document_insertion(
+                collection=collection, query=json.loads(testcase["message"])
+            )
 
-        #     self.assertEqual(len(result), len(testcase["ans"]))
-        #     for res, ans in zip(result, testcase["ans"]):
-        #         for field in ans:
-        #             self.assertEqual(res[field], ans[field])
+            self.assertEqual(len(result), len(testcase["ans"]))
+            for res, ans in zip(result, testcase["ans"]):
+                for field in ans:
+                    self.assertEqual(res[field], ans[field])
 
-        # collection.delete_many({})
+        collection.delete_many({})
 
 
 if __name__ == "__main__":

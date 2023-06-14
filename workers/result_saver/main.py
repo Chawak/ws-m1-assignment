@@ -51,8 +51,7 @@ def main():
         write_ack = mongo_insert(
             db_name=MONGO_DB_NAME, col_name=MONGO_COL_NAME, obj=json.loads(body)
         )
-        print("Received Body")
-        print("Ack", write_ack)
+
         if write_ack:
             ch.basic_ack(delivery_tag=method.delivery_tag)
 
@@ -65,5 +64,4 @@ def main():
 if __name__ == "__main__":
     print("Running a saver worker...")
     print("Message receive from queue:", RABBITMQ_RESULT_QUEUE)
-    print("Mongo db and col name", MONGO_DB_NAME, MONGO_COL_NAME)
     main()
