@@ -34,7 +34,7 @@ class ResultCheckerTestcase(unittest.TestCase):
         self.assertEqual(type(connection), BlockingConnection)
         channel = connection.channel()
         self.assertEqual(type(channel), BlockingChannel)
-        channel.queue_delete(queue=TEST_QUEUE_NAME)
+        channel.queue_purge(queue=TEST_QUEUE_NAME)
 
         channel.queue_declare(queue=TEST_QUEUE_NAME, durable=True)
 
@@ -60,7 +60,7 @@ class ResultCheckerTestcase(unittest.TestCase):
             ConnectionParameters(RABBITMQ_HOST, port=RABBITMQ_PORT)
         )
         channel = connection.channel()
-        channel.queue_delete(queue=IMAGE_QUEUE_NAME)
+        channel.queue_purge(queue=IMAGE_QUEUE_NAME)
         channel.close()
 
         for testcase in RABBITMQ_PUBLISH_FUNC_TESTCASES:
