@@ -147,14 +147,14 @@ class ImageConverterTestcase(unittest.TestCase):
     #         greyscaled = base64.b64encode(greyscaled_img)
     #         self.assertEqual(greyscaled, testcase["expected_encode_img"])
 
-    # def test_process_image(self):
-    #     for testcase in PROCESS_IMAGE_TESTCASES:
-    #         encoded_body, _, finished = process_image(testcase["body"])
-    #         self.assertEqual(encoded_body["image"], testcase["expected_encode_img"])
-    #         self.assertEqual(
-    #             encoded_body["result_type"], testcase["expected_result_type"]
-    #         )
-    #         self.assertEqual(finished, testcase["expected_finished_status"])
+    def test_process_image(self):
+        for testcase in PROCESS_IMAGE_TESTCASES:
+            encoded_body, _, finished = process_image(testcase["body"])
+            # self.assertEqual(encoded_body["image"], testcase["expected_encode_img"])
+            self.assertEqual(
+                encoded_body["result_type"], testcase["expected_result_type"]
+            )
+            self.assertEqual(finished, testcase["expected_finished_status"])
 
     def test_message_receive_and_convert(self):
         connection = BlockingConnection(

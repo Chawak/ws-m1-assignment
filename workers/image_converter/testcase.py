@@ -52,16 +52,37 @@ REDIS_TESTCASES = [
 GREYSCALE_TESTCASES = [{"url": "tmp", "expected_encode_img": "tmp2"}]
 PROCESS_IMAGE_TESTCASES = [
     {
-        "body": "tmp",
+        "body": json.dumps(
+            {
+                "url": "https://s3-ap-southeast-1.amazonaws.com/wisesight-images/saai/th/2023/02/09/original_1623585897492131841_146010221.jpg",
+                "job_id": 0,
+            }
+        ),
         "expected_encode_img": "tmp",
         "expected_finished_status": True,
         "expected_result_type": "convert",
     },
     {
-        "body": "tmp",
+        "body": json.dumps(
+            {
+                "url": "https://s3-ap-southeast-1.amazonaws.com/wisesight-images/saai/th/2023/02/09/original_1623585897492131841_146010221.jpg",
+                "job_id": 1,
+            }
+        ),
         "expected_encode_img": "tmp",
         "expected_finished_status": True,
         "expected_result_type": "cached",
+    },
+    {
+        "body": json.dumps(
+            {
+                "url": "https://s3-ap-southeast-1.amazonaws.com/wisesight-images/saai/th/2023/02/09/original_1623585896271609856_111018367.jpg",
+                "job_id": 0,
+            }
+        ),
+        "expected_encode_img": "tmp",
+        "expected_finished_status": True,
+        "expected_result_type": "convert",
     },
 ]
 
