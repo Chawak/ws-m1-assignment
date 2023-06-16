@@ -6,7 +6,13 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, status, Security
 from fastapi.responses import JSONResponse
 from fastapi.security import APIKeyHeader
-from pika import BasicProperties, BlockingConnection, ConnectionParameters, spec
+from pika import (
+    BasicProperties,
+    BlockingConnection,
+    ConnectionParameters,
+    spec,
+    PlainCredentials,
+)
 from pika.exceptions import AMQPConnectionError
 import validators
 from pydantic import BaseModel
@@ -60,7 +66,10 @@ def rabbitmq_publish(
     queue: str = IMAGE_QUEUE_NAME,
 ) -> bool:
     try:
-        mq_connection = BlockingConnection(ConnectionParameters(host=host, port=port))
+        credentials = PlainCredentials("root", "example")
+        mq_connection = BlockingConnection(
+            ConnectionParameters(host=host, port=port, credentials=credentials)
+        )
         mq_channel = mq_connection.channel()
 
         mq_channel.queue_declare(queue=queue, durable=True)

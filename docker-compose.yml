@@ -1,9 +1,36 @@
 services:
+
+  influxdb:
+    image: influxdb
+    restart: always
+    ports:
+      - 8086:8086
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: my-user
+      DOCKER_INFLUXDB_INIT_PASSWORD: my-password
+      DOCKER_INFLUXDB_INIT_ORG: my-org
+      DOCKER_INFLUXDB_INIT_BUCKET: my-bucket
+  redis_db:
+    image: redis
+    restart: always
+    ports:
+      - 6379:6379
+    volumes:
+      - ./redis.conf:/etc/redis/redis.conf
+  rabbitmq:
+    image: rabbitmq:3
+    restart: always
+    ports:
+      - 5672:5672
+    environment:
+      RABBITMQ_DEFAULT_USER: root
+      RABBITMQ_DEFAULT_PASS: example
   db:
-      image: mongo
-      restart: always
-      ports:
-        - 27017:27017
-      environment: 
-        MONGO_INITDB_ROOT_USERNAME: root
-        MONGO_INITDB_ROOT_PASSWORD: example
+    image: mongo
+    restart: always
+    ports:
+      - 27017:27017
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: example

@@ -28,6 +28,8 @@ TIMEOUT = 100
 
 class ResultCheckerTestcase(unittest.TestCase):
     def test_rabbitmq(self):
+        # credentials = pika.PlainCredentials('username', 'password')
+        # parameters = pika.ConnectionParameters(credentials=credentials)
         connection = BlockingConnection(
             ConnectionParameters(RABBITMQ_HOST, port=RABBITMQ_PORT)
         )
