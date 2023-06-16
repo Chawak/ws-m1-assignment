@@ -7,12 +7,14 @@ import requests
 import redis
 import imagehash
 import time
+from typing import List, Any
 from dotenv import load_dotenv
 from pika import BlockingConnection, ConnectionParameters, BasicProperties, spec
 from PIL import Image, ImageOps
 import influxdb_client
 from influxdb_client import Point
 from influxdb_client.client.write_api import SYNCHRONOUS
+from influxdb_client.rest import ApiException
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-test", action="store_true")
@@ -55,20 +57,31 @@ influx_write_client = influxdb_client.InfluxDBClient(
 write_api = influx_write_client.write_api(write_options=SYNCHRONOUS)
 
 
-def write_to_influxdb(value, field):
-    point = Point(INFLUXDB_MEASUREMENT).field(field, value)
-    write_api.write(bucket=INFLUXDB_BUCKET, org=INFLUXDB_ORG, record=point)
+def write_to_influxdb(
+    values: List[Any],
+    fields: List[str],
+    bucket: str = INFLUXDB_BUCKET,
+    measurement: str = INFLUXDB_MEASUREMENT,
+):
+    try:
+        point = Point(measurement)
+        for field, value in zip(fields, values):
+            point = point.field(field, value)
+        write_api.write(bucket=bucket, org=INFLUXDB_ORG, record=point)
+        return True
+    except:
+        return False
 
 
 def process_image(body) -> tuple[dict, float, bool]:
     body = json.loads(body)
+    print("process image body", body)
+    encoded_body = {"job_id": body["job_id"]}
 
-    encoded_body = {"job_id": body.job_id}
-
-    res = requests.get(body.url, timeout=IMG_REQUEST_TIMEOUT)
+    res = requests.get(body["url"], timeout=IMG_REQUEST_TIMEOUT)
 
     if not res.ok:
-        key = REDIS_ATTEMPT_KEY_PREFIX + hash(body.url)
+        key = REDIS_ATTEMPT_KEY_PREFIX + str(hash(body["url"]))
         attempt_count = redis_db.get(key)
 
         if not attempt_count:
@@ -90,7 +103,8 @@ def process_image(body) -> tuple[dict, float, bool]:
 
     start_time = time.perf_counter()
 
-    cached_img = redis_db.get(REDIS_IMG_KEY_PREFIX + hashed_img)
+    img_key = REDIS_IMG_KEY_PREFIX + str(hashed_img)
+    cached_img = redis_db.get(img_key)
     if cached_img:
         encoded_body["image"] = cached_img
         encoded_body["result_type"] = "cached"
@@ -99,7 +113,7 @@ def process_image(body) -> tuple[dict, float, bool]:
         encoded_img = base64.b64encode(converted_img).decode("ascii")
         encoded_body["image"] = encoded_img
         encoded_body["result_type"] = "convert"
-        redis_db.set(REDIS_IMG_KEY_PREFIX + hashed_img, encoded_img, ex=REDIS_EXP_TIME)
+        redis_db.set(img_key, encoded_img, ex=REDIS_EXP_TIME)
 
     process_time = time.perf_counter() - start_time
 
@@ -126,9 +140,10 @@ def main():
     def callback(ch, method, properties, body):
         encoded_body, process_time, finish = process_image(body)
 
-        write_to_influxdb(value=process_time, field="process_time")
-
-        write_to_influxdb(value=encoded_body["is_cached"], field="is_cached")
+        influx_write_status = write_to_influxdb(
+            values=[process_time, encoded_body["result_type"]],
+            fields=["process_time", "result_type"],
+        )
 
         if finish:
             ch.basic_ack(delivery_tag=method.delivery_tag)
